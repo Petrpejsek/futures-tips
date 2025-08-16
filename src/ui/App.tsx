@@ -6,6 +6,11 @@ import type { FeaturesSnapshot } from '../../types/features';
 import { decideFromFeatures, type MarketDecision } from '../../services/decider/rules_decider';
 import { selectCandidates } from '../../services/signals/candidate_selector';
 import { buildSignalSet, type SignalSet } from '../../services/signals/rules_signals';
+import { HeaderBar } from './components/HeaderBar';
+import { StatusPills, type WsHealth } from './components/StatusPills';
+import { ErrorPanel } from './components/ErrorPanel';
+import { SettingsDrawer } from './components/SettingsDrawer';
+import { downloadJson } from './utils/downloadJson';
 
 export const App: React.FC = () => {
   const [snapshot, setSnapshot] = useState<MarketRawSnapshot | null>(null);
@@ -13,8 +18,12 @@ export const App: React.FC = () => {
   const [featuresMs, setFeaturesMs] = useState<number | null>(null);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorPayload, setErrorPayload] = useState<any | null>(null);
   const [decision, setDecision] = useState<MarketDecision | null>(null);
   const [signalSet, setSignalSet] = useState<SignalSet | null>(null);
+  const [lastRunAt, setLastRunAt] = useState<string | null>(null);
+  const [wsHealth, setWsHealth] = useState<WsHealth | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const symbolsLoaded = useMemo(() => {
     if (!snapshot) return 0;
@@ -26,9 +35,18 @@ export const App: React.FC = () => {
   const onRun = async () => {
     setRunning(true);
     setError(null);
+    setErrorPayload(null);
     try {
       const res = await fetch('/api/snapshot');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        let payload: any = null;
+        try { payload = await res.json(); } catch {}
+        if (payload && res.status === 500) {
+          setErrorPayload(payload);
+          throw new Error(payload?.error || `HTTP ${res.status}`);
+        }
+        throw new Error(`HTTP ${res.status}`);
+      }
       const data: MarketRawSnapshot = await res.json();
       setSnapshot(data);
       // compute features
@@ -42,14 +60,18 @@ export const App: React.FC = () => {
       const cands = selectCandidates(feats, dec);
       const set = buildSignalSet(feats, dec, cands);
       setSignalSet(set);
+      setLastRunAt(new Date().toISOString());
       // console table summary
       const sizeKB = JSON.stringify(feats).length / 1024;
       // eslint-disable-next-line no-console
-      console.table({ snapshotMs: Math.round(data.latency_ms), featuresMs: Math.round(dt), symbols: data.universe.length, featuresSizeKB: +sizeKB.toFixed(1) });
+      console.table({ durationMs: Math.round((data as any).duration_ms ?? (data as any).latency_ms ?? 0), featuresMs: Math.round(dt), symbols: data.universe.length, setups: set.setups.length });
       // persist
       try {
         localStorage.setItem('m1Snapshot', JSON.stringify(data));
         localStorage.setItem('m2Features', JSON.stringify(feats));
+        localStorage.setItem('m3Decision', JSON.stringify(dec));
+        localStorage.setItem('m4SignalSet', JSON.stringify(set));
+        localStorage.setItem('lastRunAt', String(new Date().toISOString()));
       } catch {}
     } catch (e: any) {
       setError(e?.message ?? 'Unknown error');
@@ -58,67 +80,75 @@ export const App: React.FC = () => {
     }
   };
 
-  const onExport = () => {
-    if (!snapshot) return;
-    const blob = new Blob([JSON.stringify(snapshot)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `market_raw_snapshot_${new Date().toISOString()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  const onExport = () => { if (snapshot) downloadJson(snapshot, 'snapshot') };
 
-  const onExportFeatures = () => {
-    if (!features) return;
-    const blob = new Blob([JSON.stringify(features)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `features_snapshot_${new Date().toISOString()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  const onExportFeatures = () => { if (features) downloadJson(features, 'features') };
+
+  // WS health poll (best-effort)
+  useEffect(() => {
+    let mounted = true
+    let timer: number | undefined
+    const poll = async () => {
+      try {
+        const res = await fetch('/api/ws/health')
+        if (res.ok) {
+          const h = await res.json()
+          if (mounted) setWsHealth(h)
+        } else {
+          if (mounted) setWsHealth(null)
+        }
+      } catch { if (mounted) setWsHealth(null) }
+      timer = window.setTimeout(poll, 4000)
+    }
+    poll()
+    return () => { mounted = false; if (timer) clearTimeout(timer) }
+  }, [])
 
   useEffect(() => {
     try {
       const sRaw = localStorage.getItem('m1Snapshot');
       const fRaw = localStorage.getItem('m2Features');
+      const dRaw = localStorage.getItem('m3Decision');
+      const setRaw = localStorage.getItem('m4SignalSet');
+      const lastRun = localStorage.getItem('lastRunAt');
       if (sRaw) setSnapshot(JSON.parse(sRaw));
       if (fRaw) {
         const feats = JSON.parse(fRaw);
         setFeatures(feats);
         try {
-          const dec = decideFromFeatures(feats);
-          setDecision(dec);
-          const cands = selectCandidates(feats, dec);
-          const set = buildSignalSet(feats, dec, cands);
-          setSignalSet(set);
+          if (dRaw) setDecision(JSON.parse(dRaw)); else {
+            const dec = decideFromFeatures(feats);
+            setDecision(dec);
+          }
+          if (setRaw) setSignalSet(JSON.parse(setRaw)); else {
+            const cands = selectCandidates(feats, decideFromFeatures(feats));
+            const set = buildSignalSet(feats, decideFromFeatures(feats), cands);
+            setSignalSet(set);
+          }
         } catch {}
       }
+      if (lastRun) setLastRunAt(lastRun);
     } catch {}
   }, []);
 
   return (
-    <div style={{ fontFamily: 'Inter, system-ui, Arial', padding: 16, maxWidth: 1200, margin: '0 auto' }}>
-      <h2>Public Fetcher</h2>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-        <button onClick={onRun} disabled={running}>
-          {running ? 'Running…' : 'Run'}
-        </button>
-        <button onClick={onExport} disabled={!snapshot}>Export snapshot (JSON)</button>
-        <button onClick={onExportFeatures} disabled={!features}>Export features (JSON)</button>
-      </div>
+    <div style={{ padding: 16, maxWidth: 1200, margin: '0 auto' }}>
+      <HeaderBar running={running} onRun={onRun} onExportSnapshot={onExport} onExportFeatures={onExportFeatures} onToggleSettings={() => setSettingsOpen(true)} />
+      <StatusPills
+        feedsOk={snapshot?.feeds_ok ?? null}
+        snapshotMs={(snapshot as any)?.duration_ms ?? (snapshot as any)?.latency_ms ?? null}
+        featuresMs={featuresMs}
+        symbols={snapshot?.universe?.length != null ? (2 + snapshot.universe.length) : null}
+        ws={wsHealth}
+      />
       <SnapshotBanner
         feedsOk={!!snapshot?.feeds_ok}
-        latencyMs={snapshot?.latency_ms ?? 0}
+        latencyMs={(snapshot as any)?.duration_ms ?? (snapshot as any)?.latency_ms ?? 0}
         symbolsLoaded={symbolsLoaded}
         featuresMs={featuresMs}
         breadthPct={features?.breadth.pct_above_EMA50_H1 ?? null}
       />
-      {error && (
-        <pre style={{ color: 'crimson', whiteSpace: 'pre-wrap' }}>{error}</pre>
-      )}
+      {errorPayload ? <ErrorPanel payload={errorPayload} /> : (error ? <pre style={{ color: 'crimson', whiteSpace: 'pre-wrap' }}>{error}</pre> : null)}
       {snapshot && (
         <details style={{ marginTop: 16 }}>
           <summary>Preview snapshot</summary>
@@ -148,6 +178,7 @@ export const App: React.FC = () => {
           {React.createElement(require('./components/SetupsTable').SetupsTable, { signalSet })}
         </>
       )}
+      <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} lastSnapshot={snapshot} lastRunAt={lastRunAt} />
     </div>
   );
 };
