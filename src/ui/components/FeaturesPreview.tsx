@@ -1,5 +1,5 @@
 import React from 'react'
-import type { FeaturesSnapshot } from '../../types/features'
+import type { FeaturesSnapshot } from '../../../types/features'
 
 type Props = { features: FeaturesSnapshot }
 
@@ -24,7 +24,7 @@ export const FeaturesPreview: React.FC<Props> = ({ features }) => {
           </tr>
         </thead>
         <tbody>
-          {rows.map((r) => (
+          {rows.map((r: any) => (
             <tr key={r.symbol}>
               <td>{r.symbol}</td>
               <td style={{ textAlign: 'right' }}>{r.atr_pct_H1 != null ? r.atr_pct_H1.toFixed(2) : '—'}</td>

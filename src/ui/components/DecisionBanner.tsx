@@ -1,5 +1,5 @@
 import React from 'react'
-import type { MarketDecision } from '../../services/decider/rules_decider'
+import type { MarketDecision } from '../../../services/decider/rules_decider'
 
 type Props = { decision: MarketDecision }
 

@@ -182,21 +182,21 @@ export const App: React.FC = () => {
       {features && (
         <>
           <div style={{ height: 8 }} />
-          {/* @ts-expect-error allow dynamic import path */}
+          {/* dynamic import path for preview component */}
           {React.createElement(require('./components/FeaturesPreview').FeaturesPreview, { features })}
         </>
       )}
       {decision && (
         <>
           <div style={{ height: 8 }} />
-          {/* @ts-expect-error allow dynamic import path */}
+          {/* dynamic import path for decision banner */}
           {React.createElement(require('./components/DecisionBanner').DecisionBanner, { decision })}
         </>
       )}
       {signalSet && (
         <>
           <div style={{ height: 8 }} />
-          {/* @ts-expect-error allow dynamic import path */}
+          {/* dynamic import path for setups table */}
           {React.createElement(require('./components/SetupsTable').SetupsTable, { signalSet })}
         </>
       )}

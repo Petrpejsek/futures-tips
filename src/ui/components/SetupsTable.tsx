@@ -1,5 +1,5 @@
 import React from 'react'
-import type { SignalSet } from '../../services/signals/rules_signals'
+import type { SignalSet } from '../../../services/signals/rules_signals'
 
 type Props = { signalSet: SignalSet }
 
@@ -28,7 +28,7 @@ export const SetupsTable: React.FC<Props> = ({ signalSet }) => {
             </tr>
           </thead>
           <tbody>
-            {signalSet.setups.slice(0, 3).map((s) => (
+            {signalSet.setups.slice(0, 3).map((s: any) => (
               <tr key={s.symbol}>
                 <td>{s.symbol}</td>
                 <td>{s.side}</td>

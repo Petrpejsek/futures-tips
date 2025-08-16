@@ -1,5 +1,5 @@
 import React from 'react'
-import type { MarketRawSnapshot } from '../../types/market_raw'
+import type { MarketRawSnapshot } from '../../../types/market_raw'
 
 type Props = {
   open: boolean
