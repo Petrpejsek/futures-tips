@@ -26,4 +26,20 @@ body { margin: 0; background: var(--bg); color: var(--fg); font-family: Inter, u
 .backdrop.open { opacity: 1; pointer-events: auto }
 .monospace { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px }
 
+/* Report + print */
+.report { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px }
+.report .section { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px }
+.report h3 { margin: 0 0 8px 0 }
+.report table { width: 100%; border-collapse: collapse }
+.report th, .report td { border-bottom: 1px solid var(--border); padding: 6px 8px; text-align: left }
+.no-print { }
+@media print {
+  :root { --bg: #ffffff; --fg: #000000; --card: #ffffff; --border: #d1d5db }
+  body { background: #ffffff; color: #000000 }
+  .no-print, .drawer, .backdrop, .btn, .pill { display: none !important }
+  .report { max-width: none; margin: 0; gap: 8px }
+  .report .section { break-inside: avoid; page-break-inside: avoid }
+  .report table { page-break-inside: avoid }
+}
+
 

@@ -11,6 +11,7 @@ import { StatusPills, type WsHealth } from './components/StatusPills';
 import { ErrorPanel } from './components/ErrorPanel';
 import { SettingsDrawer } from './components/SettingsDrawer';
 import { downloadJson } from './utils/downloadJson';
+import { ReportView } from './views/ReportView';
 
 export const App: React.FC = () => {
   const [snapshot, setSnapshot] = useState<MarketRawSnapshot | null>(null);
@@ -24,6 +25,7 @@ export const App: React.FC = () => {
   const [lastRunAt, setLastRunAt] = useState<string | null>(null);
   const [wsHealth, setWsHealth] = useState<WsHealth | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [showReport, setShowReport] = useState(false);
 
   const symbolsLoaded = useMemo(() => {
     if (!snapshot) return 0;
@@ -155,7 +157,11 @@ export const App: React.FC = () => {
 
   return (
     <div style={{ padding: 16, maxWidth: 1200, margin: '0 auto' }}>
-      <HeaderBar running={running} onRun={onRun} onExportSnapshot={onExport} onExportFeatures={onExportFeatures} onToggleSettings={() => setSettingsOpen(true)} />
+      <HeaderBar running={running} onRun={onRun} onExportSnapshot={onExport} onExportFeatures={onExportFeatures} onToggleSettings={() => setSettingsOpen(true)} onToggleReport={() => setShowReport(v => !v)} showingReport={showReport} />
+      {showReport ? (
+        <ReportView snapshot={snapshot} features={features} decision={decision} signals={signalSet} featuresMs={featuresMs ?? null} />
+      ) : (
+        <>
       <StatusPills
         feedsOk={snapshot?.feeds_ok ?? null}
         snapshotMs={(snapshot as any)?.duration_ms ?? (snapshot as any)?.latency_ms ?? null}
@@ -198,6 +204,8 @@ export const App: React.FC = () => {
           <div style={{ height: 8 }} />
           {/* dynamic import path for setups table */}
           {React.createElement(require('./components/SetupsTable').SetupsTable, { signalSet })}
+        </>
+      )}
         </>
       )}
       <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} lastSnapshot={snapshot} lastRunAt={lastRunAt} />
