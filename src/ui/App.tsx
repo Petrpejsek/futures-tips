@@ -12,6 +12,7 @@ import { ErrorPanel } from './components/ErrorPanel';
 import { SettingsDrawer } from './components/SettingsDrawer';
 import { downloadJson } from './utils/downloadJson';
 import { ReportView } from './views/ReportView';
+import { buildMarketCompact } from '../../services/decider/market_compact';
 
 export const App: React.FC = () => {
   const [snapshot, setSnapshot] = useState<MarketRawSnapshot | null>(null);
@@ -57,7 +58,20 @@ export const App: React.FC = () => {
       const dt = performance.now() - t0;
       setFeatures(feats);
       setFeaturesMs(dt);
-      const dec = decideFromFeatures(feats);
+      // M3: strict GPT via backend when enabled; no silent fallback
+      let dec: MarketDecision
+      const mode = String((import.meta as any).env?.VITE_DECIDER_MODE || (globalThis as any).DECIDER_MODE || 'mock').toLowerCase()
+      if (mode === 'gpt') {
+        const compact = buildMarketCompact(feats, data)
+        const resp = await fetch('/api/decide', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(compact) })
+        if (resp.ok) {
+          dec = await resp.json()
+        } else {
+          dec = { flag: 'NO-TRADE', posture: 'RISK-OFF', market_health: 0, expiry_minutes: 30, reasons: ['gpt_error:http'], risk_cap: { max_concurrent: 0, risk_per_trade_max: 0 } }
+        }
+      } else {
+        dec = decideFromFeatures(feats)
+      }
       setDecision(dec);
       const cands = selectCandidates(feats, dec);
       const set = buildSignalSet(feats, dec, cands);

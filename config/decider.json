@@ -1,0 +1,7 @@
+{
+  "mode": "mock",
+  "model": "gpt-5-thinking",
+  "timeoutMs": 8000,
+  "temperature": 0.1,
+  "maxRetries": 0
+}

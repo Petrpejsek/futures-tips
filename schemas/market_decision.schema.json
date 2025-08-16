@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": [
+    "flag",
+    "posture",
+    "market_health",
+    "expiry_minutes",
+    "reasons",
+    "risk_cap"
+  ],
+  "properties": {
+    "flag": { "enum": ["NO-TRADE", "CAUTION", "OK"] },
+    "posture": { "enum": ["RISK-ON", "NEUTRAL", "RISK-OFF"] },
+    "market_health": { "type": "number", "minimum": 0, "maximum": 100 },
+    "expiry_minutes": { "type": "number", "minimum": 15, "maximum": 720 },
+    "reasons": { "type": "array", "items": { "type": "string" }, "maxItems": 3 },
+    "risk_cap": {
+      "type": "object",
+      "required": ["max_concurrent", "risk_per_trade_max"],
+      "properties": {
+        "max_concurrent": { "type": "number", "minimum": 0, "maximum": 5 },
+        "risk_per_trade_max": { "type": "number", "minimum": 0, "maximum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "watch_next": { "type": "array", "items": { "type": "string" } }
+  },
+  "additionalProperties": false
+}
+
+
