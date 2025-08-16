@@ -25,3 +25,9 @@ Status: MVP Analyze→Signals – DONE
 - Akční bod (další sprint): Perf Sprint – stabilizovat symbols ≥ 30 (WS alt H1 prewarm + robustnější backfill a telemetrie drop:*:alt:*:noH1)
 
 
+## M4 Signals – DEV OK
+
+- QA_M4_GO: YES (schema valid, deterministic order, guards in place, setups≤3).
+- Export: see `fixtures/signals/last_signals.json`.
+- Notes: backend/UI unchanged per scope; future step – GPT Decider (M3) integration plan.
+
