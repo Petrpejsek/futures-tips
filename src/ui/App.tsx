@@ -61,6 +61,8 @@ export const App: React.FC = () => {
       const set = buildSignalSet(feats, dec, cands);
       setSignalSet(set);
       setLastRunAt(new Date().toISOString());
+      setError(undefined as any);
+      setErrorPayload(null);
       // console table summary
       const sizeKB = JSON.stringify(feats).length / 1024;
       // eslint-disable-next-line no-console
@@ -130,6 +132,26 @@ export const App: React.FC = () => {
       if (lastRun) setLastRunAt(lastRun);
     } catch {}
   }, []);
+
+  // Keyboard shortcuts: r (run), s (export snapshot), f (export features)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null
+      const isTyping = !!target && (
+        target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || (target as any).isContentEditable === true || target.tagName === 'SELECT'
+      )
+      if (isTyping) return
+      if (e.key === 'r' || e.key === 'R') {
+        if (!running) onRun()
+      } else if (e.key === 's' || e.key === 'S') {
+        onExport()
+      } else if (e.key === 'f' || e.key === 'F') {
+        onExportFeatures()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [running, snapshot, features])
 
   return (
     <div style={{ padding: 16, maxWidth: 1200, margin: '0 auto' }}>

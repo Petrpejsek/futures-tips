@@ -11,6 +11,7 @@ export function downloadJson(obj: unknown, name: string): void {
   a.download = fileName
   a.click()
   URL.revokeObjectURL(url)
+  try { console.info('Downloaded:', fileName) } catch {}
 }
 
 

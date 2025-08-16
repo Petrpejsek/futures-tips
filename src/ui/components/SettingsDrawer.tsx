@@ -62,6 +62,7 @@ export const SettingsDrawer: React.FC<Props> = ({ open, onClose, lastSnapshot, l
           <h4 style={{ margin: '8px 0' }}>Build info</h4>
           <Item label="Last run" value={lastRunAt ?? 'n/a'} />
           <Item label="Snapshot timestamp" value={lastSnapshot?.timestamp ?? 'n/a'} />
+          <Item label="Symbols" value={lastSnapshot?.universe ? 2 + lastSnapshot.universe.length : 'n/a'} />
         </div>
       </aside>
     </>

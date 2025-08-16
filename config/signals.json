@@ -1,0 +1,13 @@
+{
+  "topK": 3,
+  "mode": "intraday",
+  "risk_pct_by_posture": { "OK": 0.7, "CAUTION": 0.5, "NO-TRADE": 0 },
+  "expires_in_min": 45,
+  "limits": {
+    "max_atr_pct_h1": 5.0,
+    "min_sl_atr_mult": 1.0,
+    "min_tp1_R": 0.8,
+    "max_setups": 3
+  }
+}
+
