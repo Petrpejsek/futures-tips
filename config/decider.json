@@ -1,7 +1,7 @@
 {
-  "mode": "mock",
-  "model": "gpt-5-thinking",
-  "timeoutMs": 8000,
-  "temperature": 0.1,
-  "maxRetries": 0
+  "mode": "gpt",
+  "model": "gpt-4o-mini",
+  "api": "chat",
+  "timeoutMs": 10000,
+  "temperature": 0.1
 }
