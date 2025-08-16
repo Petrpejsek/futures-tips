@@ -1,0 +1,35 @@
+{
+  "name": "trader-new-new-new",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite --port 4200",
+    "dev:server": "tsx server/index.ts",
+    "qa:m2": "tsx scripts/qa_m2.ts",
+    "export:m1m2": "tsx scripts/export_m1_m2.ts",
+    "build": "tsc -noEmit && vite build",
+    "preview": "vite preview --port 4200",
+    "typecheck": "tsc -noEmit",
+    "test": "echo \"No tests yet. See tests/fetcher.spec.md for manual scenarios.\" && exit 0"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "undici": "^7.13.0",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "@types/react": "^19.1.10",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react": "^4.7.0",
+    "tsx": "^4.20.4",
+    "typescript": "^5.9.2",
+    "vite": "^6.3.5"
+  }
+}
