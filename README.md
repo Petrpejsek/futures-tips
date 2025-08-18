@@ -31,3 +31,7 @@ Status: MVP Analyze→Signals – DONE
 - Export: see `fixtures/signals/last_signals.json`.
 - Notes: backend/UI unchanged per scope; future step – GPT Decider (M3) integration plan.
 
+
+## Project Overview
+
+- Repository: https://github.com/Petrpejsek/futures-tips
