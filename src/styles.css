@@ -10,6 +10,8 @@ body { margin: 0; background: var(--bg); color: var(--fg); font-family: Inter, u
 .btn { background: #111827; color: var(--fg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; cursor: pointer }
 .btn[disabled] { opacity: .6; cursor: not-allowed }
 .btn.primary { background: var(--accent); border-color: #1d4ed8 }
+.btn.success { background: var(--ok); border-color: #10b981; color: #ecfdf5; font-weight: 600 }
+.btn.success:hover { background: #10b981 }
 .btn.ghost { background: transparent; border-color: transparent }
 .btn.toggle { position: relative; transition: transform .05s ease, box-shadow .1s ease }
 .btn.toggle.active { background: #1f2937; border-color: #3b82f6; color: #e5e7eb; box-shadow: 0 0 0 2px #1d4ed8 inset }

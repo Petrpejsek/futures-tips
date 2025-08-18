@@ -61,6 +61,11 @@ export const App: React.FC = () => {
   const [rawLoading, setRawLoading] = useState(false);
   const [loadingSymbol, setLoadingSymbol] = useState<string | null>(null);
   const [rawCoins, setRawCoins] = useState<any[] | null>(null);
+  const [rawAnalysis, setRawAnalysis] = useState<{ top_picks: Array<{ symbol: string; label: 'super_hot'|'zajimavy'|'slaby'; note: string }>; all_ratings: Array<{ symbol: string; label: 'super_hot'|'zajimavy'|'slaby' }> } | null>(null)
+  const [rawAnalysisLoading, setRawAnalysisLoading] = useState(false)
+  const topSymbolSet = useMemo(() => {
+    try { return new Set((rawAnalysis?.top_picks || []).map(tp => String(tp.symbol || ''))) } catch { return new Set<string>() }
+  }, [rawAnalysis])
   const [universeStrategy, setUniverseStrategy] = useState<'volume' | 'gainers'>(() => {
     try { return (localStorage.getItem('universe_strategy') as any) === 'gainers' ? 'gainers' : 'volume' } catch { return 'volume' }
   });
@@ -416,6 +421,7 @@ export const App: React.FC = () => {
       const coins = Array.isArray(json?.coins) ? json.coins : []
       // Update UI state immediately (even if clipboard fails later)
       setRawCoins(coins)
+      setRawAnalysis(null)
       try { localStorage.setItem('rawCoins', JSON.stringify({ strategy: universeStrategy, coins })) } catch {}
       // Derive BTC/ETH regime for banner hint and status pills
       try {
@@ -437,6 +443,17 @@ export const App: React.FC = () => {
       }
       setRawCopied(true)
       window.setTimeout(() => setRawCopied(false), 1400)
+      // Kick off GPT raw analysis in background (non-blocking)
+      try {
+        setRawAnalysisLoading(true)
+        const resp = await fetch('/api/raw/analyze', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(coins) })
+        if (resp.ok) {
+          const r = await resp.json()
+          const data = r?.data
+          if (data && Array.isArray(data?.top_picks) && Array.isArray(data?.all_ratings)) setRawAnalysis(data)
+        }
+      } catch {}
+      finally { setRawAnalysisLoading(false) }
     } catch {}
     finally { setRawLoading(false) }
   }
@@ -577,14 +594,42 @@ export const App: React.FC = () => {
                   aria-pressed={universeStrategy === 'gainers'}
                 >Gainers 24h</button>
               </div>
-              <button className="btn" style={{ border: '2px solid #333' }} onClick={copyRawAll} aria-label="Copy RAW dataset (all alts)" title={rawCopied ? 'Zkopírováno' : 'Copy RAW dataset'} disabled={rawLoading}>
+              <button className="btn success" style={{ border: '2px solid #065f46' }} onClick={copyRawAll} aria-label="Copy RAW dataset (all alts)" title={rawCopied ? 'Zkopírováno' : 'Copy RAW dataset'} disabled={rawLoading}>
                 {rawLoading ? 'Stahuji…' : (rawCopied ? 'RAW zkopírováno ✓' : 'Copy RAW (vše)')}
               </button>
             </div>
           </div>
+          {/* Top picks (full-width), if available */}
+          {rawAnalysis && Array.isArray(rawAnalysis.top_picks) && rawAnalysis.top_picks.length > 0 ? (
+            <div className="row wrap" style={{ gap: 6, marginTop: 8 }}>
+              {rawAnalysis.top_picks.map((tp) => (
+                <div key={`tp-${tp.symbol}`} className="card" style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, borderColor: tp.label === 'super_hot' ? '#065f46' : (tp.label === 'zajimavy' ? '#78350f' : '#7f1d1d'), background: tp.label === 'super_hot' ? '#052e2b' : (tp.label === 'zajimavy' ? '#2b1705' : '#3a0d0d') }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 160 }}>
+                    <strong style={{ fontSize: 14, width: 140 }}>{formatSymbol(tp.symbol)}</strong>
+                    <span className="pill" style={{ borderColor: 'transparent', background: 'transparent', color: tp.label === 'super_hot' ? '#a7f3d0' : (tp.label === 'zajimavy' ? '#fde68a' : '#fecaca') }}>
+                      {tp.label === 'super_hot' ? '🟢 super hot' : (tp.label === 'zajimavy' ? '🟡 zajímavý' : '🔴 slabý')}
+                    </span>
+                  </div>
+                  <div style={{ flex: 1, margin: '0 8px', opacity: .9, fontSize: 12 }}>{tp.note}</div>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <button
+                      className="btn"
+                      onClick={() => copyCoin({ symbol: tp.symbol })}
+                      aria-label={`Copy ${tp.symbol} JSON`}
+                      title={copiedSymbol === tp.symbol ? 'Zkopírováno' : 'Copy to clipboard'}
+                      disabled={loadingSymbol === tp.symbol}
+                      style={{ padding: '3px 6px', fontSize: 11 }}>
+                      {loadingSymbol === tp.symbol ? 'Stahuji…' : (copiedSymbol === tp.symbol ? '✓' : 'Copy')}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (rawAnalysisLoading ? (<div className="row" style={{ gap: 8, marginTop: 8 }}><span className="spinner" /> <span style={{ fontSize: 12, opacity: .9 }}>Analyzuji RAW…</span></div>) : null)}
+
           {/* Per-coin copy buttons below header for clarity */}
           <div className="coins-grid">
-            {(displayCoins as any[]).map((u: any, idx: number) => (
+            {(displayCoins as any[]).filter((u: any) => !topSymbolSet.has(u.symbol)).map((u: any, idx: number) => (
               <div key={u.symbol} style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6, border: '1px solid #2a2a2a', padding: '4px 6px', borderRadius: 6 }}>
                 <span style={{ fontSize: 11, opacity: .8 }}>#{idx + 1}</span>
                 <span style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', fontSize: 13, opacity: .95, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '70%', pointerEvents: 'none' }}>
