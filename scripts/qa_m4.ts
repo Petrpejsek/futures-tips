@@ -27,8 +27,15 @@ async function main() {
   const feats: FeaturesSnapshot = JSON.parse(await fs.readFile(fPath, 'utf8'))
   const snap: MarketRawSnapshot = JSON.parse(await fs.readFile(sPath, 'utf8'))
   const dec = decideFromFeatures(feats)
-  const cands = selectCandidates(feats, dec)
-  const set = buildSignalSet(feats, dec, cands)
+  const cands = selectCandidates(feats, snap, {
+    decisionFlag: dec.flag as any,
+    allowWhenNoTrade: false,
+    limit: 6,
+    cfg: { atr_pct_min: 0.3, atr_pct_max: 12, min_liquidity_usdt: 2_000_000 },
+    canComputeSimPreview: false,
+    finalPickerStatus: 'ok'
+  })
+  const set = buildSignalSet(feats, dec, cands as any)
   const ok = Array.isArray(set.setups) && set.setups.length <= 3 && set.setups.every(s => s.mode === 'intraday')
   console.table({ setups: set.setups.length, modeOk: set.setups.every(s=>s.mode==='intraday') })
   console.log(`QA_M4_GO: ${ok ? 'YES' : 'NO'}`)

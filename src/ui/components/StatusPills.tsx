@@ -18,6 +18,8 @@ export const StatusPills: React.FC<Props> = ({ feedsOk, snapshotMs, featuresMs, 
   const feedsClass = feedsOk ? 'pill ok' : feedsOk == null ? 'pill warn' : 'pill err'
   const wsLabel = ws ? (ws.connected ? `WS: ${ws.streams} streams` : 'WS: disconnected') : 'WS: —'
   const wsClass = ws ? (ws.connected ? 'pill ok' : 'pill err') : 'pill'
+  const profile = (()=>{ try { const cfg = (window as any).APP_CFG || {}; return cfg.profile || 'LEAN' } catch { return 'LEAN' } })()
+  const profileTitle = 'TopK=8, compact payload, diag off'
   return (
     <div className="row wrap gap-8 mb-12">
       <span className={feedsClass}>Feeds: {feedsOk ? 'OK' : feedsOk == null ? '—' : 'ERROR'}</span>
@@ -25,6 +27,7 @@ export const StatusPills: React.FC<Props> = ({ feedsOk, snapshotMs, featuresMs, 
       <span className="pill">Features: {featuresMs != null ? `${Math.round(featuresMs)} ms` : '—'}</span>
       <span className="pill">Symbols: {symbols ?? '—'}</span>
       <span className={wsClass}>{wsLabel}</span>
+      <span className="pill" title={profileTitle}>Profile: {profile}</span>
     </div>
   )
 }

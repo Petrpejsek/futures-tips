@@ -10,3 +10,5 @@ dist
 fixtures/**/*.json
 
 .env*
+logs/
+out/

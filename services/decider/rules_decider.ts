@@ -20,14 +20,14 @@ export function decideFromFeatures(f: FeaturesSnapshot): MarketDecision {
   if (br < 25 && (!btcAbove || !ethAbove)) {
     return {
       flag: 'NO-TRADE', posture: 'RISK-OFF', market_health: 20, expiry_minutes: 60,
-      reasons: ['low breadth', 'below VWAP'], risk_cap: { max_concurrent: 0, risk_per_trade_max: 0 }
+      reasons: ['nízká šířka trhu (breadth)', 'BTC/ETH pod VWAP'], risk_cap: { max_concurrent: 0, risk_per_trade_max: 0 }
     }
   }
 
   if (((btc.atr_pct_H1 ?? 0) > 3.5 || (eth.atr_pct_H1 ?? 0) > 3.5) && br < 40) {
     return {
       flag: 'CAUTION', posture: 'NEUTRAL', market_health: 45, expiry_minutes: 60,
-      reasons: ['high vol', 'weak breadth'], risk_cap: { max_concurrent: 2, risk_per_trade_max: 0.5 }
+      reasons: ['vysoká volatilita', 'slabá šířka trhu'], risk_cap: { max_concurrent: 2, risk_per_trade_max: 0.5 }
     }
   }
 
@@ -37,7 +37,7 @@ export function decideFromFeatures(f: FeaturesSnapshot): MarketDecision {
     posture: riskOn ? 'RISK-ON' : 'NEUTRAL',
     market_health: riskOn ? 70 : 55,
     expiry_minutes: 60,
-    reasons: riskOn ? ['trend H4', 'breadth≥60'] : ['mixed conditions'],
+    reasons: riskOn ? ['trend na H4 (EMA50>EMA200)', 'šířka trhu ≥ 60%'] : ['smíšené podmínky'],
     risk_cap: riskOn ? { max_concurrent: 3, risk_per_trade_max: 1.0 } : { max_concurrent: 2, risk_per_trade_max: 0.5 }
   }
 }

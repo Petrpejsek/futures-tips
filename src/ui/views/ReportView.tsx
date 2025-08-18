@@ -53,6 +53,22 @@ export const ReportView: React.FC<Props> = ({ snapshot, features, decision, sign
     try { await navigator.clipboard.writeText(txt); console.info('Copied summary') } catch {}
   }
 
+  const fp = useMemo(() => {
+    try {
+      const raw = localStorage.getItem('m4FinalPicker')
+      return raw ? JSON.parse(raw) : null
+    } catch { return null }
+  }, [])
+  const maxLev = fp?.settings_snapshot?.max_leverage ?? null
+
+  const picksOk = useMemo(() => {
+    try {
+      const raw = localStorage.getItem('m4FinalPicks')
+      const arr = raw ? JSON.parse(raw) : []
+      return Array.isArray(arr) && arr.length > 0 && (fp?.status === 'success' || (localStorage.getItem('m4FinalPicker') || '').includes('"status":"success"'))
+    } catch { return false }
+  }, [fp])
+
   return (
     <div className="report">
       <div className="no-print row gap-8" style={{ justifyContent: 'flex-end' }}>
@@ -122,6 +138,24 @@ export const ReportView: React.FC<Props> = ({ snapshot, features, decision, sign
           <span className="pill">snapshotKB: {sizeKB(snapshot)}</span>
           <span className="pill">featuresKB: {sizeKB(features)}</span>
           <span className="pill">warnings: {warnings.length}</span>
+        </div>
+        <div className="mt-12">
+          <h4 style={{ margin: '8px 0' }}>Final Picker run {picksOk ? (<span style={{ marginLeft: 8, fontSize: 12, cursor: 'pointer', textDecoration:'underline' }} title="Zkopíruje stejný JSON jako tlačítko v tabulce (zaokrouhlené ceny, qty, risk_pct_used, expiry_at)." aria-label="Zkopíruje stejný JSON jako tlačítko v tabulce (zaokrouhlené ceny, qty, risk_pct_used, expiry_at)." role="button" tabIndex={0} onKeyDown={(e)=>{ if (e.key==='Enter' || e.key===' ') window.dispatchEvent(new Event('app-copy-all-picks')) }} onClick={()=>window.dispatchEvent(new Event('app-copy-all-picks'))}>Copy current picks JSON</span>) : null}</h4>
+          <div className="row wrap gap-12">
+            {(() => { try { const raw = localStorage.getItem('m4FinalPicker'); if (!raw) return null; const j = JSON.parse(raw); return (
+              <>
+                <span className="pill">posture: {j.posture ?? 'n/a'}</span>
+                <span className="pill">candidates: {j.candidatesCount ?? j.candidates ?? 'n/a'}</span>
+                <span className="pill">picks: {j.picksCount ?? 'n/a'}</span>
+                <span className="pill">status: {j.status ?? 'n/a'}</span>
+                <span className="pill">latency: {j.latencyMs ?? 'n/a'} ms</span>
+                {j.advisory ? <span className="pill">advisory: true</span> : null}
+                {j.error_code ? <span className="pill">error: {j.error_code}</span> : null}
+                <span className="pill">Max leverage (settings): {j.settings_snapshot?.max_leverage ?? '—'}</span>
+              </>
+            ) } catch { return null } })()}
+          </div>
+          <button className="btn mt-8" onClick={() => { try { const raw = localStorage.getItem('m4FinalPicker'); if (raw) navigator.clipboard.writeText(raw) } catch {} }}>Copy Final Picker JSON</button>
         </div>
         {diagDrops.length ? (
           <details className="mt-8">

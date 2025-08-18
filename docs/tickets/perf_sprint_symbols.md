@@ -27,3 +27,13 @@
 - [ ] Log & report `drop:*:alt:*:noH1` (počty + unikátní symboly).
 - [ ] QA série (3×) a zápis výsledků do README.
 
+## RUNBOOK – Candidates (LEAN)
+
+- Aktuální LEAN topK: 8 (profiles.lean.topK)
+- Gates (LEAN):
+  - min_avg_trade_usdt = 12
+  - min_body_ratio_m15 = 0.44
+  - max_upper_wick_ratio_m15 = 0.50
+  - hard_gates.atr_pct_h1.min = 1.00
+- Pokud se objeví moc low-liquidity picků: zvyš min_avg_trade_usdt na 15 a znovu spusť QA runner `npm run -s qa:profiles:fresh`.
+

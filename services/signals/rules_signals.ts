@@ -22,7 +22,7 @@ export type SignalSetup = {
 
 export type SignalSet = { setups: SignalSetup[] }
 
-export function buildSignalSet(f: FeaturesSnapshot, decision: MarketDecision, candidates: CoinRow[]): SignalSet {
+export function buildSignalSet(f: FeaturesSnapshot, decision: MarketDecision, candidates: CoinRow[], limit?: number): SignalSet {
   const setups: SignalSetup[] = []
   const lim: any = (signalsCfg as any).limits || {}
   const riskMap: Record<string, number> = (signalsCfg as any).risk_pct_by_posture || { OK: 0.7, CAUTION: 0.5, 'NO-TRADE': 0 }
@@ -57,7 +57,8 @@ export function buildSignalSet(f: FeaturesSnapshot, decision: MarketDecision, ca
   }
 
   const maxSetups = lim.max_setups ?? 3
-  const set: SignalSet = { setups: setups.slice(0, maxSetups) }
+  const hardLimit = Math.max(1, Math.min(limit ?? maxSetups, 5))
+  const set: SignalSet = { setups: setups.slice(0, hardLimit) }
   const ok = validate(set as any)
   if (!ok) {
     // eslint-disable-next-line no-console
