@@ -613,8 +613,28 @@ export async function buildMarketRawSnapshot(opts?: { universeStrategy?: 'volume
     item.h4_low = Array.isArray((btc as any)?.klines?.H4) ? Math.min(...((btc as any).klines.H4 as Kline[]).map(k=>k.low)) : null
     item.d1_high = null
     item.d1_low = null
-    if (sym === 'BTCUSDT') (btc as any).funding = item.funding, (btc as any).oi_now = item.oi_now
-    if (sym === 'ETHUSDT') (eth as any).funding = item.funding, (eth as any).oi_now = item.oi_now
+    const target = (sym === 'BTCUSDT') ? (btc as any) : (eth as any)
+    // Propagate computed indicators back to core objects so downstream endpoints (e.g. /api/metrics) see non-null values
+    target.funding = item.funding
+    target.oi_now = item.oi_now
+    target.atr_pct_H1 = item.atr_pct_H1
+    target.atr_pct_M15 = item.atr_pct_M15
+    target.atr_h1 = item.atr_h1
+    target.atr_m15 = item.atr_m15
+    target.ema20_H1 = item.ema20_H1
+    target.ema50_H1 = item.ema50_H1
+    target.ema200_H1 = item.ema200_H1
+    target.ema20_M15 = item.ema20_M15
+    target.ema50_M15 = item.ema50_M15
+    target.ema200_M15 = item.ema200_M15
+    target.rsi_H1 = item.rsi_H1
+    target.rsi_M15 = item.rsi_M15
+    target.vwap_today = item.vwap_today
+    target.vwap_daily = item.vwap_daily
+    target.vwap_rel_today = item.vwap_rel_today
+    target.vwap_rel_daily = item.vwap_rel_daily
+    target.support = item.support
+    target.resistance = item.resistance
   }
   for (const sym of universeSymbols) {
     if (!hasAlt(sym)) { warnings.push(`drop:alt:noH1:${sym}`); continue }
