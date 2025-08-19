@@ -62,9 +62,15 @@ export const App: React.FC = () => {
   const [loadingSymbol, setLoadingSymbol] = useState<string | null>(null);
   const [rawCoins, setRawCoins] = useState<any[] | null>(null);
   const [rawAnalysis, setRawAnalysis] = useState<{ top_picks: Array<{ symbol: string; label: 'super_hot'|'zajimavy'|'slaby'; note: string }>; all_ratings: Array<{ symbol: string; label: 'super_hot'|'zajimavy'|'slaby' }> } | null>(null)
+  const [plans, setPlans] = useState<Record<string, any>>({})
+  const [planning, setPlanning] = useState<Record<string, boolean>>({})
+  const [bulkPlanning, setBulkPlanning] = useState(false)
   const [rawAnalysisLoading, setRawAnalysisLoading] = useState(false)
   const topSymbolSet = useMemo(() => {
-    try { return new Set((rawAnalysis?.top_picks || []).map(tp => String(tp.symbol || ''))) } catch { return new Set<string>() }
+    try {
+      const arr = (rawAnalysis?.top_picks || []).filter((tp: any) => tp && tp.symbol !== 'BTCUSDT' && tp.symbol !== 'ETHUSDT')
+      return new Set(arr.map((tp: any) => String(tp.symbol || '')))
+    } catch { return new Set<string>() }
   }, [rawAnalysis])
   const [universeStrategy, setUniverseStrategy] = useState<'volume' | 'gainers'>(() => {
     try { return (localStorage.getItem('universe_strategy') as any) === 'gainers' ? 'gainers' : 'volume' } catch { return 'volume' }
@@ -82,6 +88,72 @@ export const App: React.FC = () => {
     try { return localStorage.getItem('forceCandidates') === '1' } catch { return true }
   });
   useEffect(() => { try { localStorage.setItem('forceCandidates', forceCandidates ? '1' : '0') } catch {} }, [forceCandidates]);
+
+  const requestPlan = async (symbol: string) => {
+    if (!symbol) return
+    setPlanning((s) => ({ ...s, [symbol]: true }))
+    try {
+      const body = { symbols: [symbol], universe: universeStrategy, topN: 50 }
+      const res = await fetch('/api/intraday_multi', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      if (!res.ok) {
+        try { const j = await res.json(); throw new Error(`HTTP ${res.status}${j?.error?`: ${j.error}`:''}`) } catch { throw new Error(`HTTP ${res.status}`) }
+      }
+      const j = await res.json()
+      const assets: any[] = Array.isArray(j?.assets) ? j.assets : []
+      const asset = assets.find((a:any) => a?.symbol === symbol)
+      if (!asset) throw new Error('ASSET_NOT_FOUND')
+      const p = await fetch('/api/coin/plan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(asset) })
+      if (!p.ok) {
+        try { const jj = await p.json(); throw new Error(`plan_failed:${symbol}:${p.status}${jj?.code?`: ${jj.code}`:''}`) } catch { throw new Error(`plan_failed:${symbol}:${p.status}`) }
+      }
+      const dj = await p.json()
+      const plan = dj?.data || null
+      if (plan) {
+        setPlans((s) => ({ ...s, [symbol]: plan }))
+        try { localStorage.setItem(`plan:${symbol}`, JSON.stringify(plan)) } catch {}
+      }
+    } catch (e:any) {
+      setError(`Plan error for ${symbol}: ${e?.message || 'unknown'}`)
+    } finally {
+      setPlanning((s) => ({ ...s, [symbol]: false }))
+    }
+  }
+
+  const requestPlansBulk = async (symbols: string[]) => {
+    if (!symbols || symbols.length === 0) return
+    setBulkPlanning(true)
+    try {
+      const body = { symbols, universe: universeStrategy, topN: 50 }
+      const res = await fetch('/api/intraday_multi', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      if (!res.ok) {
+        try { const j = await res.json(); throw new Error(`HTTP ${res.status}${j?.error?`: ${j.error}`:''}`) } catch { throw new Error(`HTTP ${res.status}`) }
+      }
+      const json = await res.json()
+      const assets: any[] = Array.isArray(json?.assets) ? json.assets : []
+      for (const s of symbols) {
+        const asset = assets.find(a => a?.symbol === s)
+        if (!asset) continue
+        try {
+          const p = await fetch('/api/coin/plan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(asset) })
+          if (!p.ok) {
+            try { const j = await p.json(); throw new Error(`plan_failed:${s}:${p.status}${j?.code?`: ${j.code}`:''}`) } catch { throw new Error(`plan_failed:${s}:${p.status}`) }
+          }
+          const dj = await p.json()
+          const plan = dj?.data || null
+          if (plan) {
+            setPlans((st) => ({ ...st, [s]: plan }))
+            try { localStorage.setItem(`plan:${s}`, JSON.stringify(plan)) } catch {}
+          }
+        } catch (e:any) {
+          setError(`Plan ${s}: ${e?.message || 'unknown'}`)
+        }
+      }
+    } catch (e:any) {
+      setError(`Bulk plan error: ${e?.message || 'unknown'}`)
+    } finally {
+      setBulkPlanning(false)
+    }
+  }
 
   const symbolsLoaded = useMemo(() => {
     if (!snapshot) return 0;
@@ -421,7 +493,10 @@ export const App: React.FC = () => {
       const coins = Array.isArray(json?.coins) ? json.coins : []
       // Update UI state immediately (even if clipboard fails later)
       setRawCoins(coins)
+      // reset previous analyses and plans to avoid stale heuristics
       setRawAnalysis(null)
+      setPlans({})
+      try { Object.keys(localStorage).forEach(k => { if (k.startsWith('plan:')) localStorage.removeItem(k) }) } catch {}
       try { localStorage.setItem('rawCoins', JSON.stringify({ strategy: universeStrategy, coins })) } catch {}
       // Derive BTC/ETH regime for banner hint and status pills
       try {
@@ -602,8 +677,24 @@ export const App: React.FC = () => {
           {/* Top picks (full-width), if available */}
           {rawAnalysis && Array.isArray(rawAnalysis.top_picks) && rawAnalysis.top_picks.length > 0 ? (
             <div className="row wrap" style={{ gap: 6, marginTop: 8 }}>
+              <div style={{ width: '100%', display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+                <button
+                  className="btn"
+                  onClick={() => {
+                    // clear any previous plans (could be stale)
+                    setPlans({})
+                    try { Object.keys(localStorage).forEach(k => { if (k.startsWith('plan:')) localStorage.removeItem(k) }) } catch {}
+                    const list = (rawAnalysis?.top_picks || []).filter((x:any)=>x?.label==='super_hot').map((x:any)=>String(x.symbol)).filter((s:string)=>!!s)
+                    requestPlansBulk(list)
+                  }}
+                  disabled={bulkPlanning || !((rawAnalysis?.top_picks||[]).some((x:any)=>x?.label==='super_hot'))}
+                >
+                  {bulkPlanning ? 'Odesílám…' : 'Odeslat super hot'}
+                </button>
+              </div>
               {rawAnalysis.top_picks.map((tp) => (
-                <div key={`tp-${tp.symbol}`} className="card" style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, borderColor: tp.label === 'super_hot' ? '#065f46' : (tp.label === 'zajimavy' ? '#78350f' : '#7f1d1d'), background: tp.label === 'super_hot' ? '#052e2b' : (tp.label === 'zajimavy' ? '#2b1705' : '#3a0d0d') }}>
+                <React.Fragment key={`frag-${tp.symbol}`}>
+                <div className="card" style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, borderColor: tp.label === 'super_hot' ? '#065f46' : (tp.label === 'zajimavy' ? '#78350f' : '#7f1d1d'), background: tp.label === 'super_hot' ? '#052e2b' : (tp.label === 'zajimavy' ? '#2b1705' : '#3a0d0d') }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 160 }}>
                     <strong style={{ fontSize: 14, width: 140 }}>{formatSymbol(tp.symbol)}</strong>
                     <span className="pill" style={{ borderColor: 'transparent', background: 'transparent', color: tp.label === 'super_hot' ? '#a7f3d0' : (tp.label === 'zajimavy' ? '#fde68a' : '#fecaca') }}>
@@ -611,7 +702,10 @@ export const App: React.FC = () => {
                     </span>
                   </div>
                   <div style={{ flex: 1, margin: '0 8px', opacity: .9, fontSize: 12 }}>{tp.note}</div>
-                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {tp.label === 'super_hot' ? (
+                      <button className="btn" onClick={() => requestPlan(tp.symbol)} disabled={!!planning[tp.symbol]} style={{ padding: '3px 6px', fontSize: 11 }}>{planning[tp.symbol] ? 'Plánuji…' : 'Odeslat plán'}</button>
+                    ) : null}
                     <button
                       className="btn"
                       onClick={() => copyCoin({ symbol: tp.symbol })}
@@ -623,13 +717,58 @@ export const App: React.FC = () => {
                     </button>
                   </div>
                 </div>
+                {plans[tp.symbol] ? (
+                  <div key={`plan-${tp.symbol}`} className="card" style={{ width: '100%', marginTop: 6, borderColor: '#065f46' }}>
+                    {(() => {
+                      const p:any = plans[tp.symbol]
+                      return (
+                        <div style={{ overflowX: 'auto' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                            <thead>
+                              <tr>
+                                <th style={{ textAlign: 'left', padding: '4px 6px' }}>Coin</th>
+                                <th style={{ textAlign: 'left', padding: '4px 6px' }}>Entry (K/A/P)</th>
+                                <th style={{ textAlign: 'left', padding: '4px 6px' }}>Stop-loss</th>
+                                <th style={{ textAlign: 'left', padding: '4px 6px' }}>TP1</th>
+                                <th style={{ textAlign: 'left', padding: '4px 6px' }}>TP2</th>
+                                <th style={{ textAlign: 'left', padding: '4px 6px' }}>TP3</th>
+                                <th style={{ textAlign: 'left', padding: '4px 6px' }}>RRR</th>
+                                <th style={{ textAlign: 'left', padding: '4px 6px' }}>Komentář</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr>
+                                <td style={{ padding: '4px 6px' }}>{formatSymbol(p.symbol || tp.symbol)}</td>
+                                <td style={{ padding: '4px 6px' }}>{Array.isArray(p.entries)?p.entries.map((e:any)=>`${Number(e.price).toFixed(5).replace(/\.0+$/,'').replace(/(\.\d*?)0+$/,'$1')} (${e.type==='conservative'?'konz.':e.type==='aggressive'?'agr.':'pullb.'})`).join(' / '):''}</td>
+                                <td style={{ padding: '4px 6px' }}>{p.stop_loss!=null?Number(p.stop_loss).toFixed(5).replace(/\.0+$/,'').replace(/(\.\d*?)0+$/,'$1'):''}</td>
+                                <td style={{ padding: '4px 6px' }}>{p.take_profit?.tp1!=null?Number(p.take_profit.tp1).toFixed(5).replace(/\.0+$/,'').replace(/(\.\d*?)0+$/,'$1'):''}</td>
+                                <td style={{ padding: '4px 6px' }}>{p.take_profit?.tp2!=null?Number(p.take_profit.tp2).toFixed(5).replace(/\.0+$/,'').replace(/(\.\d*?)0+$/,'$1'):''}</td>
+                                <td style={{ padding: '4px 6px' }}>{p.take_profit?.tp3!=null?Number(p.take_profit.tp3).toFixed(5).replace(/\.0+$/,'').replace(/(\.\d*?)0+$/,'$1'):''}</td>
+                                <td style={{ padding: '4px 6px' }}>{[p.rrr?.tp1,p.rrr?.tp2,p.rrr?.tp3].filter((x:any)=>x!=null).map((x:any)=>Number(x).toFixed(3).replace(/\.0+$/,'').replace(/(\.\d*?)0+$/,'$1')).join(' / ')}</td>
+                                <td style={{ padding: '4px 6px' }}>{p.comment || ''}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                          <div className="row" style={{ gap: 6, marginTop: 6 }}>
+                            <button className="btn" onClick={()=>{ try { navigator.clipboard.writeText(JSON.stringify(p, null, 2)) } catch {} }}>Copy plán (JSON)</button>
+                            <button className="btn" onClick={()=>{ const s = tp.symbol; setPlans((x)=>{ const y:any={...x}; delete y[s]; return y }); try { localStorage.removeItem(`plan:${s}`) } catch {} }}>Skrýt plán</button>
+                          </div>
+                        </div>
+                      )
+                    })()}
+                  </div>
+                ) : null}
+                </React.Fragment>
               ))}
             </div>
           ) : (rawAnalysisLoading ? (<div className="row" style={{ gap: 8, marginTop: 8 }}><span className="spinner" /> <span style={{ fontSize: 12, opacity: .9 }}>Analyzuji RAW…</span></div>) : null)}
 
           {/* Per-coin copy buttons below header for clarity */}
           <div className="coins-grid">
-            {(displayCoins as any[]).filter((u: any) => !topSymbolSet.has(u.symbol)).map((u: any, idx: number) => (
+            {(displayCoins as any[])
+              .filter((u: any) => u.symbol !== 'BTCUSDT' && u.symbol !== 'ETHUSDT')
+              .filter((u: any) => !topSymbolSet.has(u.symbol))
+              .map((u: any, idx: number) => (
               <div key={u.symbol} style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6, border: '1px solid #2a2a2a', padding: '4px 6px', borderRadius: 6 }}>
                 <span style={{ fontSize: 11, opacity: .8 }}>#{idx + 1}</span>
                 <span style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', fontSize: 13, opacity: .95, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '70%', pointerEvents: 'none' }}>
