@@ -655,7 +655,7 @@ export const App: React.FC = () => {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <strong>Alt universe</strong>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 12, opacity: .8 }}>count: {(displayCoins as any[]).length}</span>
+              <span style={{ fontSize: 12, opacity: .8 }}>count: {(displayCoins as any[]).filter((u:any)=>u.symbol!=='BTCUSDT' && u.symbol!=='ETHUSDT').length}</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ fontSize: 12, opacity: .8 }}>Universe:</span>
                 <button
@@ -684,15 +684,18 @@ export const App: React.FC = () => {
                     // clear any previous plans (could be stale)
                     setPlans({})
                     try { Object.keys(localStorage).forEach(k => { if (k.startsWith('plan:')) localStorage.removeItem(k) }) } catch {}
-                    const list = (rawAnalysis?.top_picks || []).filter((x:any)=>x?.label==='super_hot').map((x:any)=>String(x.symbol)).filter((s:string)=>!!s)
+                    const list = (rawAnalysis?.top_picks || [])
+                      .filter((x:any)=>x?.label==='super_hot')
+                      .map((x:any)=>String(x.symbol))
+                      .filter((s:string)=>!!s && s!=='BTCUSDT' && s!=='ETHUSDT')
                     requestPlansBulk(list)
                   }}
-                  disabled={bulkPlanning || !((rawAnalysis?.top_picks||[]).some((x:any)=>x?.label==='super_hot'))}
+                  disabled={bulkPlanning || !((rawAnalysis?.top_picks||[]).some((x:any)=>x?.label==='super_hot' && x?.symbol!=='BTCUSDT' && x?.symbol!=='ETHUSDT'))}
                 >
                   {bulkPlanning ? 'Odesílám…' : 'Odeslat super hot'}
                 </button>
               </div>
-              {rawAnalysis.top_picks.map((tp) => (
+              {rawAnalysis.top_picks.filter((tp:any)=>tp.symbol!=='BTCUSDT' && tp.symbol!=='ETHUSDT').map((tp) => (
                 <React.Fragment key={`frag-${tp.symbol}`}>
                 <div className="card" style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, borderColor: tp.label === 'super_hot' ? '#065f46' : (tp.label === 'zajimavy' ? '#78350f' : '#7f1d1d'), background: tp.label === 'super_hot' ? '#052e2b' : (tp.label === 'zajimavy' ? '#2b1705' : '#3a0d0d') }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 160 }}>
@@ -764,7 +767,7 @@ export const App: React.FC = () => {
           ) : (rawAnalysisLoading ? (<div className="row" style={{ gap: 8, marginTop: 8 }}><span className="spinner" /> <span style={{ fontSize: 12, opacity: .9 }}>Analyzuji RAW…</span></div>) : null)}
 
           {/* Per-coin copy buttons below header for clarity */}
-          <div className="coins-grid">
+          <div className="coins-grid" key={`grid-${universeStrategy}-${String(snapshot?.timestamp||'')}` }>
             {(displayCoins as any[])
               .filter((u: any) => u.symbol !== 'BTCUSDT' && u.symbol !== 'ETHUSDT')
               .filter((u: any) => !topSymbolSet.has(u.symbol))
